@@ -8,7 +8,7 @@ gw2mqtt is a command line tool to get data from Goodwe inverter directly (UDP) a
 This is stll very broken as I am mainly working on getting this working at home, and it's not really meant for distribution. But if you really want to try it, you need to have Python 3 and pip installed. Then:
 
 ```shell
-sudo pip3 install <path to file on github>
+sudo pip3 install https://github.com/jakezp/gw2mqtt/raw/main/dist/gw2mqtt-0.0.9.tar.gz
 ```
 
 ```shell
@@ -45,7 +45,7 @@ gw-inverter-port - ...
 
 ## Docker
 
-You can use the [Dockerfile](https://github.com/markruys/gw2pvo/blob/master/Dockerfile) to run a Docker container as follows:
+You can use the [Dockerfile](https://raw.githubusercontent.com/jakezp/gw2mqtt/main/Dockerfile) to run a Docker container as follows:
 
 Update the values in the Dockerfile to match your environment, then:
 
