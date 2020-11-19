@@ -28,13 +28,15 @@ def telegram_notify(telegram_token, telegram_chatid, message):
     bot.sendMessage(chat_id=chat_id, text=message)
 
 # MQTT broker
-def mqtt_server_connection(mqtt_host, mqtt_subscription_topic):
-    client = mqtt.Client("gw2mqtt-client")
+def mqtt_server_connection(mqtt_host, mqtt_port, mqtt_user, mqtt_password, mqtt_topic):
+    client = mqtt.Client()
     client.on_connect = mqtt_on_connect
     #client.on_message = mqtt_on_message
-    client.connect(mqtt_host)
+    client.username_pw_set(username=mqtt_user, password=mqtt_password)
+    client.connect(mqtt_host, port=int(mqtt_port))
     client.loop_start()
     #mqtt_subscribe(client, mqtt_subscription_topic)
+    
     return client
 
 def mqtt_on_connect(client, userdata, flags, rc):
@@ -79,7 +81,6 @@ def mqtt_publish_data(client, mqtt_publish_topic, payload):
 #    logging.info("Setting inverter mode to " + str(inverter_mode))
 
 def goodwe_inverter_connection(gw_inverter_ip, gw_inverter_port, telegram_token, telegram_chatid):
-
     connection_retries = 5
     for i in range(connection_retries):
         try:
@@ -98,12 +99,12 @@ def goodwe_inverter_connection(gw_inverter_ip, gw_inverter_port, telegram_token,
 
 def run_once(settings):
     try:
-        mqtt_client = mqtt_server_connection(settings.mqtt_host, settings.mqtt_subscription_topic)
+        mqtt_client = mqtt_server_connection(settings.mqtt_host, settings.mqtt_port, settings.mqtt_user, settings.mqtt_password, settings.mqtt_topic)
         inverter = goodwe_inverter_connection(settings.gw_inverter_ip, settings.gw_inverter_port, settings.telegram_token, settings.telegram_chatid)
         return mqtt_client, inverter[0], inverter[1]
     except:
         telegram_notify(settings.telegram_token, settings.telegram_chatid, "FATAL: gw2mqtt failed to connect to inverter or MQTT broker. Please investigate urgently")
-        sys.exit("Failed to connect to inverter or MQTT broker")
+        #sys.exit("Failed to connect to inverter or MQTT broker")
 
 def run():
     defaults = {
@@ -141,7 +142,7 @@ def run():
     parser.add_argument("--mqtt-port", help="MQTT port (1883 or 8883 for TLS)", metavar='MQTT_PORT')
     parser.add_argument("--mqtt-user", help="MQTT username", metavar='MQTT_USER')
     parser.add_argument("--mqtt-password", help="MQTT password", metavar='MQTT_PASS')
-    parser.add_argument("--mqtt-subscription-topic", help="MQTT subscribtion topic to listen to commands", metavar='MQTT_TOPIC')
+    parser.add_argument("--mqtt-topic", help="MQTT subscribtion topic to listen to commands", metavar='MQTT_TOPIC')
     parser.add_argument("--pvo-api-key", help="PVOutput API key", metavar='KEY')
     parser.add_argument("--pvo-interval", help="PVOutput interval in minutes", type=int, choices=[5, 10, 15])
     parser.add_argument("--telegram-token", help="Telegram bot token", metavar='TELEGRAM_TOKEN')
