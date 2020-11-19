@@ -174,18 +174,21 @@ def run():
     #
     startTime = datetime.now()
     clients = run_once(args)
-    logging.info(clients) 
+    #logging.info(clients) 
     mqtt_client = clients[0]
+
     inverter = clients[1]
     inv_con_state = clients[2]
 
     logging.debug("Inverter client connection: " + str(inverter))
     logging.debug("MQTT broker client connection: " + str(mqtt_client))
     logging.debug("Inverter status: " + str(inv_con_state))
-
+    
     while True:
         try:
+            currentTime = datetime.now()
             response = asyncio.run(inverter.read_runtime_data())
+            logging.info(str(currentTime) + " - Publishing data to mqtt broker")
             for key, value in response.items():
                 topic = ("emoncms/goodwe/" + str(key))
                 mqtt_publish_data(mqtt_client, topic, value)
@@ -193,6 +196,8 @@ def run():
             sys.exit(1)
         except Exception as exp:
             logging.error(exp)
+            publishError = (str(currentTime) + "- Publishing mqtt failed - " + str(exp))
+            telegram_notify(args.telegram_token, args.telegram_chatid, publishError)
 
         if args.gw_interval is None:
             break
