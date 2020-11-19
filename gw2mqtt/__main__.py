@@ -80,7 +80,7 @@ def mqtt_publish_data(client, mqtt_publish_topic, payload):
 
 def goodwe_inverter_connection(gw_inverter_ip, gw_inverter_port, telegram_token, telegram_chatid):
 
-    connection_retries = 1
+    connection_retries = 5
     for i in range(connection_retries):
         try:
             inverter_connection = asyncio.run(inverter.discover(gw_inverter_ip, gw_inverter_port))
