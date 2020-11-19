@@ -32,39 +32,24 @@ def mqtt_server_connection(mqtt_host, mqtt_port, mqtt_user, mqtt_password, mqtt_
     client = mqtt.Client()
     client.on_connect = mqtt_on_connect
     #client.on_message = mqtt_on_message
-    client.username_pw_set(username=mqtt_user, password=mqtt_password)
-    client.connect(mqtt_host, port=int(mqtt_port))
+    client.username_pw_set(mqtt_user, password=mqtt_password)
+    client.connect(mqtt_host, port=int(mqtt_port), keepalive=30)
     client.loop_start()
     #mqtt_subscribe(client, mqtt_subscription_topic)
     
     return client
+def mqtt_server_disconnect():
+    client = mqtt.Client()
+    client.loop_stop()
 
 def mqtt_on_connect(client, userdata, flags, rc):
+    global mqtt_connected
+    mqtt_connected = rc
     if rc == 0:
-        logging.info("Connected to broker")
-    else:
-        logging.error("Failed to connect to MQTT broker")
+        logging.debug("Connected to broker")
 
 #def mqtt_on_message(client, userdata, message):
 #    global mode
-#    if str(message.payload) == "b'normal'":
-#        mode = "normal"
-#        inverter_mode = 0
-#        logging.info("Received 'normal' on command topic")
-#        #goodwe_inverter_change_mode(inverter_mode)
-#    elif str(message.payload) == "b'backup'":
-#        mode = "backup"
-#        inverter_mode = 2
-#        logging.info("Received 'backup' on command topic")
-#        #goodwe_inverter_change_mode(inverter_mode)
-#    elif str(message.payload) == "b'off-grid'":
-#        mode = "off-grid"
-#        inverter_mode = 1
-#        logging.info("Received 'off-grid' on command topic")
-#        #goodwe_inverter_change_mode(inverter_mode)
-#    else:
-#        mode = "unknown"
-#        logging.info("Received an unknown command on command topic")
 
 #def mqtt_subscribe(client, mqtt_subscription_topic):
 #    client.subscribe(mqtt_subscription_topic)
@@ -74,12 +59,6 @@ def mqtt_publish_data(client, mqtt_publish_topic, payload):
     client.publish(mqtt_publish_topic, payload)
 
 # Goodwe inverter
-#def inverter_change_mode(inverter_mode):
-#    # Not working yet
-#    mode_result = inverter.set_work_mode(int(inverter_mode))
-#    logging.info (mode_result)
-#    logging.info("Setting inverter mode to " + str(inverter_mode))
-
 def goodwe_inverter_connection(gw_inverter_ip, gw_inverter_port, telegram_token, telegram_chatid):
     connection_retries = 5
     for i in range(connection_retries):
@@ -97,14 +76,12 @@ def goodwe_inverter_connection(gw_inverter_ip, gw_inverter_port, telegram_token,
             else:
                 break
 
-def run_once(settings):
+def connect_inverter(settings):
     try:
-        mqtt_client = mqtt_server_connection(settings.mqtt_host, settings.mqtt_port, settings.mqtt_user, settings.mqtt_password, settings.mqtt_topic)
         inverter = goodwe_inverter_connection(settings.gw_inverter_ip, settings.gw_inverter_port, settings.telegram_token, settings.telegram_chatid)
-        return mqtt_client, inverter[0], inverter[1]
+        return inverter[0], inverter[1]
     except:
-        telegram_notify(settings.telegram_token, settings.telegram_chatid, "FATAL: gw2mqtt failed to connect to inverter or MQTT broker. Please investigate urgently")
-        #sys.exit("Failed to connect to inverter or MQTT broker")
+        telegram_notify(settings.telegram_token, settings.telegram_chatid, "FATAL: gw2mqtt failed to connect to the inverter.")
 
 def run():
     defaults = {
@@ -151,6 +128,7 @@ def run():
     parser.add_argument("--log", help="Set log level (default info)", choices=['debug', 'info', 'warning', 'critical'])
     parser.add_argument('--version', action='version', version='%(prog)s ' + __version__)
     args = parser.parse_args()
+    settings = args 
     
     # Configure the logging
     numeric_level = getattr(logging, args.log.upper(), None)
@@ -159,51 +137,47 @@ def run():
     logging.basicConfig(format='%(levelname)-8s %(message)s', level=numeric_level)
 
     logging.debug("gw2mqtt version " + __version__)
-
-    if args.gw_inverter_ip is None or args.mqtt_host is None:
+    
+    if settings.gw_inverter_ip is None or settings.mqtt_host is None:
         sys.exit("Missing --gw-inverter-ip or --mqtt-host")
 
-    # Sample to inject single processes
-    #if args.date:
-    #    try:
-    #        copy(args)
-    #    except KeyboardInterrupt:
-    #        sys.exit(1)
-    #    except Exception as exp:
-    #        logging.error(exp)
-    #    sys.exit()
-    #
     startTime = datetime.now()
-    clients = run_once(args)
-    #logging.info(clients) 
-    mqtt_client = clients[0]
-
-    inverter = clients[1]
-    inv_con_state = clients[2]
-
-    logging.debug("Inverter client connection: " + str(inverter))
-    logging.debug("MQTT broker client connection: " + str(mqtt_client))
-    logging.debug("Inverter status: " + str(inv_con_state))
+    
+    # Inverter connection
+    inverter_clients = connect_inverter(args)
+    inverter = inverter_clients[0]
+    inv_con_state = inverter_clients[1]
+    
+    sleep_counter = 1 
     
     while True:
         try:
             currentTime = datetime.now()
             response = asyncio.run(inverter.read_runtime_data())
+            mqtt_client = mqtt_server_connection(settings.mqtt_host, settings.mqtt_port, settings.mqtt_user, settings.mqtt_password, settings.mqtt_topic)
+            for i in range(sleep_counter):
+                if sleep_counter == 1:
+                    time.sleep(5)
+            sleep_counter = 0
+            if mqtt_connected == 0:
+                for key, value in response.items():
+                    topic = ("emoncms/goodwe/" + str(key))
+                    mqtt_publish_data(mqtt_client, topic, value)
             logging.info(str(currentTime) + " - Publishing data to mqtt broker")
-            for key, value in response.items():
-                topic = ("emoncms/goodwe/" + str(key))
-                mqtt_publish_data(mqtt_client, topic, value)
         except KeyboardInterrupt:
             sys.exit(1)
         except Exception as exp:
-            logging.error(exp)
-            publishError = (str(currentTime) + "- Publishing mqtt failed - " + str(exp))
-            telegram_notify(args.telegram_token, args.telegram_chatid, publishError)
+            logging.error(str(currentTime) + " - Publishing mqtt failed - " + str(exp))
+            publishError = ("Failed to publish to mqtt broker - " + str(exp))
+            telegram_notify(settings.telegram_token, settings.telegram_chatid, publishError)
+            sleep_counter +=1
+            if sleep_counter > 1:
+                time.sleep(240)
 
-        if args.gw_interval is None:
+        if settings.gw_interval is None:
             break
 
-        interval = args.gw_interval
+        interval = settings.gw_interval
         time.sleep(interval - (datetime.now() - startTime).seconds % interval)
 
 if __name__ == "__main__":
