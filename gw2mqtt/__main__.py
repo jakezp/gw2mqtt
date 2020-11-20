@@ -163,7 +163,8 @@ def run():
                 for key, value in response.items():
                     topic = ("emoncms/goodwe/" + str(key))
                     mqtt_publish_data(mqtt_client, topic, value)
-            logging.info(str(currentTime) + " - Publishing data to mqtt broker")
+                    logging.info(str(currentTime) + " - Publishing data to mqtt broker")
+                    mqtt_client.loop_stop()
         except KeyboardInterrupt:
             sys.exit(1)
         except Exception as exp:
