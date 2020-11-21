@@ -71,8 +71,8 @@ class MQTT:
         if socket is not None:
             return socket
 
-    def mqtt_publish_data(self, client, mqtt_topic, payload):
-        self.client.publish(mqtt_topic, payload)
+    def mqtt_publish_data(self, client, topic, payload):
+        self.client.publish(topic, payload)
 
     def mqtt_disconnect(self):
         self.client.loop_stop()

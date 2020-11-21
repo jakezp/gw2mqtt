@@ -138,7 +138,7 @@ def run():
             chk_connection = mqtt_client.mqtt_get_socket()
             if chk_connection is not None:
                 for key, value in response.items():
-                    topic = (str(settings.mqtt_topic) + str(key))
+                    topic = (str(settings.mqtt_topic) + "/" + str(key))
                     mqtt_client.mqtt_publish_data(mqtt_client, topic, value)
                 logging.info(str(currentTime) + " - Published inverter data to mqtt broker")
             else:
