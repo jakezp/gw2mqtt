@@ -1,3 +1,3 @@
-__version__ = "0.2.2"
+__version__ = "0.3.1"
 
-__all__ = [ 'goodwe_inverter' ]
+__all__ = [ 'goodwe_inverter', 'mqtt' ]
