@@ -30,12 +30,12 @@ def telegram_notify(telegram_token, telegram_chatid, message):
 # Goodwe inverter
 def goodwe_inverter_connection(gw_inverter_ip, gw_inverter_port, telegram_token, telegram_chatid):
     currentTime = datetime.now()
-    connection_retries = 1
+    connection_retries = 5
     for i in range(connection_retries):
         try:
             inverter_connection = asyncio.run(inverter.discover(gw_inverter_ip, gw_inverter_port))
             inv_con_state = "connected"
-            logging.info("Connected to inverter")
+            logging.info(str(currentTime) + " - Connected to inverter")
             return inverter_connection, inv_con_state
             i = 0
         except Exception as exp:
@@ -120,14 +120,8 @@ def run():
     # Inverter connection
     clients = run_once(args)
     mqtt_client = clients[0]
-    try:
-        inverter = clients[1]
-        inv_con_state = clients[2]
-    except Exception as exp:
-        currentTime = datetime.now()
-        errorMsg = ("Unable to connect to inverter - " + str(settings.gw_inverter_ip) + " - Result: " + str(exp))
-        logging.error(str(currentTime) + " - " + str(errorMsg))
-        telegram_notify(telegram_token, telegram_chatid, errorMsg)
+    inverter = clients[1]
+    inv_con_state = clients[2]
 
     sleep_counter = 1 
    
@@ -145,7 +139,7 @@ def run():
                 errorMsg = ("Publishing inverter data to " + str(settings.mqtt_topic) + " on " + str(settings.mqtt_host) + " failed")
                 logging.error(str(currentTime) + " - " + str(errorMsg))
                 telegram_notify(settings.telegram_token, settings.telegram_chatid, errorMsg)
-                time.sleep(30)
+                time.sleep(180)
 
         except KeyboardInterrupt:
             mqtt_client.mqtt_disconnect()

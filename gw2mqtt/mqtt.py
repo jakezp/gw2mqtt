@@ -36,6 +36,7 @@ class MQTT:
         bot.sendMessage(chat_id=chat_id, text=message)
 
     def mqtt_server_connection(self, mqtt_host, mqtt_port, mqtt_user, mqtt_password, mqtt_topic):
+        currentTime = datetime.now()
         try:
             client = self.client
             client.on_connect = self.on_connect
@@ -50,20 +51,21 @@ class MQTT:
             return
         except Exception as exp:
             errorMsg = ("Unable to connect mqtt broker - " + str(self.mqtt_host) + " - Reason: " + str(exp))
-            logging.error(str(self.currentTime) + " - " + str(errorMsg))
+            logging.error(str(currentTime) + " - " + str(errorMsg))
             self.telegram_notify(self.telegram_token, self.telegram_chatid, errorMsg)
             sys.exit(1)
     
     def on_connect(self, client, userdata, flags, rc):
+        currentTime = datetime.now()
         if rc==0:
             client.connected_flag=True
             successMsg = ("Connected to mqtt broker - " + str(self.mqtt_host) + " - Result: " + str(rc))
-            logging.info(str(self.currentTime) + " - " + str(successMsg))
+            logging.info(str(currentTime) + " - " + str(successMsg))
             self.telegram_notify(self.telegram_token, self.telegram_chatid, successMsg)
         else:
             client.bad_connection_flag=True
             errorMsg = ("Unable to connect mqtt broker - " + str(self.mqtt_host) + " - Result: " + str(rc))
-            logging.error(str(self.currentTime) + " - " + str(errorMsg))
+            logging.error(str(currentTime) + " - " + str(errorMsg))
             self.telegram_notify(self.telegram_token, self.telegram_chatid, errorMsg)
     
     def mqtt_get_socket(self):
