@@ -128,7 +128,12 @@ def run():
     while True:
         try:
             currentTime = datetime.now()
-            response = asyncio.run(inverter.read_runtime_data())
+            try:
+                response = asyncio.run(inverter.read_runtime_data())
+            except Exception as exp:
+                errorMsg = ("Getting data from inverter " + str(settings.gw_inverter_ip) + " failed. Result: " + str(exp))
+                logging.error(str(currentTime) + " - " + str(errorMsg))
+                telegram_notify(settings.telegram_token, settings.telegram_chatid, errorMsg)
             chk_connection = mqtt_client.mqtt_get_socket()
             if chk_connection is not None:
                 for key, value in response.items():
